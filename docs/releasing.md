@@ -10,6 +10,8 @@
 npm trust github @eihrteam/xml-lsp --repo EIHRTeam/xml-lsp --file publish.yml --env npm --allow-publish
 ```
 
+npm 会将刚创建的配置标记为 **Pending validation**。在包设置页显示的期限内通过受信任工作流成功发布一次，npm 会验证配置并绑定仓库身份。若使用预发布版验证，请选 `next` 或 `beta`。配置过期后，需要在下一次发版前重新建立绑定。
+
 ## 后续发布
 
 1. 更新根 `package.json` 的版本并合并到 `main`。
