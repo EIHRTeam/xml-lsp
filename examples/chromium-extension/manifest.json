@@ -1,0 +1,8 @@
+{
+  "manifest_version": 3,
+  "name": "SKLand Wiki XML — Local Editor",
+  "description": "Edit SKLand Wiki XML locally with completion, hover, diagnostics, and formatting.",
+  "version": "0.1.0",
+  "minimum_chrome_version": "145",
+  "action": { "default_popup": "popup.html" }
+}

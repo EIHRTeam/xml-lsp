@@ -1,0 +1,46 @@
+{
+  "name": "skland-xml",
+  "displayName": "SKLand Wiki XML",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Local XML language intelligence for SKLand Wiki documents.",
+  "categories": [
+    "Programming Languages"
+  ],
+  "license": "Apache-2.0",
+  "repository": "https://github.com/EIHRTeam/xml-lsp.git",
+  "publisher": "EIHRTeam",
+  "type": "module",
+  "main": "./dist/extension.cjs",
+  "browser": "./dist/web-extension.cjs",
+  "dependencies": {
+    "vscode-languageclient": "9.0.1"
+  },
+  "contributes": {
+    "languages": [
+      {
+        "id": "skland-xml",
+        "aliases": [
+          "SKLand Wiki XML"
+        ],
+        "extensions": [
+          ".skland.xml"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "skland-xml",
+        "scopeName": "text.xml.skland",
+        "path": "./xml.tmLanguage.json"
+      }
+    ]
+  },
+  "activationEvents": [
+    "onLanguage:skland-xml"
+  ],
+  "engines": {
+    "vscode": "^1.105.0"
+  }
+}

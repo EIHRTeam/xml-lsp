@@ -1,0 +1,5 @@
+{
+  "name": "SKLand Wiki XML",
+  "scopeName": "text.xml.skland",
+  "patterns": [{ "include": "text.xml" }]
+}

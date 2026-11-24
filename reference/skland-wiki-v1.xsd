@@ -1,0 +1,628 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" version="1.0">
+  <xs:annotation>
+    <xs:documentation>SKLAND Wiki XML, based on @eihrteam/xml 1.0.0. Use the converter to check chapter modes, table geometry, and other conversion rules.</xs:documentation>
+  </xs:annotation>
+
+  <xs:simpleType name="ColorValue">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="s_1"/>
+      <xs:enumeration value="s_2"/>
+      <xs:enumeration value="s_3"/>
+      <xs:enumeration value="s_4"/>
+      <xs:enumeration value="r_1"/>
+      <xs:enumeration value="r_2"/>
+      <xs:enumeration value="r_3"/>
+      <xs:enumeration value="r_4"/>
+      <xs:enumeration value="r_5"/>
+      <xs:enumeration value="r_6"/>
+      <xs:enumeration value="f_orange"/>
+      <xs:enumeration value="f_turquoise"/>
+      <xs:enumeration value="f_green"/>
+      <xs:enumeration value="f_sandstone"/>
+      <xs:enumeration value="f_yellow"/>
+      <xs:enumeration value="f_red"/>
+      <xs:enumeration value="f_blue"/>
+      <xs:enumeration value="f_brown"/>
+      <xs:enumeration value="f_violet"/>
+      <xs:enumeration value="f_blueness"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="EntryType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="card-big"/>
+      <xs:enumeration value="link-img"/>
+      <xs:enumeration value="link-txt"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="VideoKind">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="skland"/>
+      <xs:enumeration value="bilibili"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="TableHeader">
+    <xs:restriction base="xs:token">
+      <xs:enumeration value=""/>
+      <xs:enumeration value="none"/>
+      <xs:enumeration value="row"/>
+      <xs:enumeration value="col"/>
+      <xs:enumeration value="both"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="DialogSide">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="me"/>
+      <xs:enumeration value="other"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="NonEmptyString">
+    <xs:restriction base="xs:string">
+      <xs:minLength value="1"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="NonBlankText">
+    <xs:restriction base="xs:token">
+      <xs:minLength value="1"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- Most elements ignore extra attributes. Emoji and dialog descendants declare their own limits. -->
+  <xs:attributeGroup name="IgnoredAttributes">
+    <xs:anyAttribute processContents="skip"/>
+  </xs:attributeGroup>
+
+  <xs:complexType name="PlainText">
+    <xs:simpleContent>
+      <xs:extension base="xs:string">
+        <xs:attributeGroup ref="IgnoredAttributes"/>
+      </xs:extension>
+    </xs:simpleContent>
+  </xs:complexType>
+
+  <xs:complexType name="Break">
+    <xs:attributeGroup ref="IgnoredAttributes"/>
+  </xs:complexType>
+
+  <xs:complexType name="TextWithBreaks" mixed="true">
+    <xs:sequence>
+      <xs:element name="br" type="Break" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- Inline styles and annotations inherit the restrictions of the containing cell or annotation. -->
+  <xs:complexType name="Emoji">
+    <xs:attribute name="id" type="NonBlankText" use="required"/>
+  </xs:complexType>
+
+  <xs:group name="InlineLeaves">
+    <xs:choice>
+      <xs:element name="br" type="Break"/>
+      <xs:element name="emoji" type="Emoji"/>
+      <xs:element name="pron">
+        <xs:complexType>
+          <xs:complexContent>
+            <xs:extension base="TextWithBreaks">
+              <xs:attributeGroup ref="IgnoredAttributes"/>
+            </xs:extension>
+          </xs:complexContent>
+        </xs:complexType>
+      </xs:element>
+      <xs:element name="a">
+        <xs:complexType>
+          <xs:complexContent>
+            <xs:extension base="TextWithBreaks">
+              <xs:attribute name="href" type="xs:string"/>
+              <xs:attributeGroup ref="IgnoredAttributes"/>
+            </xs:extension>
+          </xs:complexContent>
+        </xs:complexType>
+      </xs:element>
+      <xs:element name="entry">
+        <xs:complexType>
+          <xs:attribute name="type" type="EntryType" use="required"/>
+          <xs:attribute name="id" type="xs:string"/>
+          <xs:attribute name="count" type="xs:string"/>
+          <xs:attributeGroup ref="IgnoredAttributes"/>
+        </xs:complexType>
+      </xs:element>
+    </xs:choice>
+  </xs:group>
+
+  <xs:group name="InlineItems">
+    <xs:choice>
+      <xs:group ref="InlineLeaves"/>
+      <xs:element name="b" type="InlineContent"/>
+      <xs:element name="i" type="InlineContent"/>
+      <xs:element name="u" type="InlineContent"/>
+      <xs:element name="s" type="InlineContent"/>
+      <xs:element name="color" type="ColorContent"/>
+      <xs:element name="annotation" type="Annotation"/>
+    </xs:choice>
+  </xs:group>
+
+  <xs:group name="CellInlineItems">
+    <xs:choice>
+      <xs:group ref="InlineLeaves"/>
+      <xs:element name="b" type="CellInlineContent"/>
+      <xs:element name="i" type="CellInlineContent"/>
+      <xs:element name="u" type="CellInlineContent"/>
+      <xs:element name="s" type="CellInlineContent"/>
+      <xs:element name="color" type="CellColorContent"/>
+      <xs:element name="annotation" type="CellAnnotation"/>
+    </xs:choice>
+  </xs:group>
+
+  <xs:group name="AnnotationInlineItems">
+    <xs:choice>
+      <xs:group ref="InlineLeaves"/>
+      <xs:element name="b" type="AnnotationInlineContent"/>
+      <xs:element name="i" type="AnnotationInlineContent"/>
+      <xs:element name="u" type="AnnotationInlineContent"/>
+      <xs:element name="s" type="AnnotationInlineContent"/>
+      <xs:element name="color" type="AnnotationColorContent"/>
+    </xs:choice>
+  </xs:group>
+
+  <xs:complexType name="InlineContent" mixed="true">
+    <xs:group ref="InlineItems" minOccurs="0" maxOccurs="unbounded"/>
+    <xs:attributeGroup ref="IgnoredAttributes"/>
+  </xs:complexType>
+  <xs:complexType name="CellInlineContent" mixed="true">
+    <xs:group ref="CellInlineItems" minOccurs="0" maxOccurs="unbounded"/>
+    <xs:attributeGroup ref="IgnoredAttributes"/>
+  </xs:complexType>
+  <xs:complexType name="AnnotationInlineContent" mixed="true">
+    <xs:group ref="AnnotationInlineItems" minOccurs="0" maxOccurs="unbounded"/>
+    <xs:attributeGroup ref="IgnoredAttributes"/>
+  </xs:complexType>
+
+  <xs:complexType name="ColorContent">
+    <xs:complexContent>
+      <xs:extension base="InlineContent">
+        <xs:attribute name="value" type="ColorValue" use="required"/>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+  <xs:complexType name="CellColorContent">
+    <xs:complexContent>
+      <xs:extension base="CellInlineContent">
+        <xs:attribute name="value" type="ColorValue" use="required"/>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+  <xs:complexType name="AnnotationColorContent">
+    <xs:complexContent>
+      <xs:extension base="AnnotationInlineContent">
+        <xs:attribute name="value" type="ColorValue" use="required"/>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
+  <xs:complexType name="Annotation">
+    <xs:all>
+      <xs:element name="title" type="AnnotationInlineContent"/>
+      <xs:element name="content" type="AnnotationContent"/>
+    </xs:all>
+    <xs:attributeGroup ref="IgnoredAttributes"/>
+  </xs:complexType>
+  <xs:complexType name="CellAnnotation">
+    <xs:all>
+      <xs:element name="title" type="AnnotationInlineContent"/>
+      <xs:element name="content" type="CellAnnotationContent"/>
+    </xs:all>
+    <xs:attributeGroup ref="IgnoredAttributes"/>
+  </xs:complexType>
+
+  <xs:group name="BlockLeaves">
+    <xs:choice>
+      <xs:element name="img" type="ImageBlock"/>
+      <xs:element name="line">
+        <xs:complexType>
+          <xs:attribute name="kind" type="xs:string"/>
+          <xs:attributeGroup ref="IgnoredAttributes"/>
+        </xs:complexType>
+      </xs:element>
+      <xs:element name="video">
+        <xs:complexType>
+          <xs:attribute name="kind" type="VideoKind" use="required"/>
+          <xs:attribute name="id" type="NonEmptyString" use="required"/>
+          <xs:attributeGroup ref="IgnoredAttributes"/>
+        </xs:complexType>
+      </xs:element>
+    </xs:choice>
+  </xs:group>
+
+  <xs:complexType name="Align">
+    <xs:complexContent>
+      <xs:extension base="InlineContent">
+        <xs:attribute name="value" type="xs:string"/>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+  <xs:complexType name="CellAlign">
+    <xs:complexContent>
+      <xs:extension base="CellInlineContent">
+        <xs:attribute name="value" type="xs:string"/>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+  <xs:complexType name="AnnotationAlign">
+    <xs:complexContent>
+      <xs:extension base="AnnotationInlineContent">
+        <xs:attribute name="value" type="xs:string"/>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
+  <!-- The same block vocabulary recurses under lists and quotes, with tables and annotations
+       omitted where their containing context forbids them. -->
+  <xs:group name="BodyItemsWithoutTable">
+    <xs:choice>
+      <xs:group ref="InlineItems"/>
+      <xs:group ref="BlockLeaves"/>
+      <xs:element name="h1" type="InlineContent"/>
+      <xs:element name="h2" type="InlineContent"/>
+      <xs:element name="h3" type="InlineContent"/>
+      <xs:element name="align" type="Align"/>
+      <xs:element name="quote" type="BodyContent"/>
+      <xs:element name="ul" type="List"/>
+      <xs:element name="ol" type="List"/>
+    </xs:choice>
+  </xs:group>
+
+  <xs:group name="BodyItems">
+    <xs:choice>
+      <xs:group ref="BodyItemsWithoutTable"/>
+      <xs:element name="table" type="ComplexTable"/>
+    </xs:choice>
+  </xs:group>
+
+  <xs:complexType name="BodyContent" mixed="true">
+    <xs:group ref="BodyItems" minOccurs="0" maxOccurs="unbounded"/>
+    <xs:attributeGroup ref="IgnoredAttributes"/>
+  </xs:complexType>
+
+  <xs:complexType name="CellContent" mixed="true">
+    <xs:choice minOccurs="0" maxOccurs="unbounded">
+      <xs:group ref="CellInlineItems"/>
+      <xs:group ref="BlockLeaves"/>
+      <xs:element name="h1" type="CellInlineContent"/>
+      <xs:element name="h2" type="CellInlineContent"/>
+      <xs:element name="h3" type="CellInlineContent"/>
+      <xs:element name="align" type="CellAlign"/>
+      <xs:element name="quote" type="CellContent"/>
+      <xs:element name="ul" type="CellList"/>
+      <xs:element name="ol" type="CellList"/>
+    </xs:choice>
+    <xs:attributeGroup ref="IgnoredAttributes"/>
+  </xs:complexType>
+
+  <xs:group name="AnnotationBodyLeaves">
+    <xs:choice>
+      <xs:group ref="AnnotationInlineItems"/>
+      <xs:group ref="BlockLeaves"/>
+      <xs:element name="h1" type="AnnotationInlineContent"/>
+      <xs:element name="h2" type="AnnotationInlineContent"/>
+      <xs:element name="h3" type="AnnotationInlineContent"/>
+      <xs:element name="align" type="AnnotationAlign"/>
+    </xs:choice>
+  </xs:group>
+
+  <xs:complexType name="AnnotationContent" mixed="true">
+    <xs:choice minOccurs="0" maxOccurs="unbounded">
+      <xs:group ref="AnnotationBodyLeaves"/>
+      <xs:element name="quote" type="AnnotationContent"/>
+      <xs:element name="ul" type="AnnotationList"/>
+      <xs:element name="ol" type="AnnotationList"/>
+      <xs:element name="table" type="AnnotationTable"/>
+    </xs:choice>
+    <xs:attributeGroup ref="IgnoredAttributes"/>
+  </xs:complexType>
+
+  <xs:complexType name="CellAnnotationContent" mixed="true">
+    <xs:choice minOccurs="0" maxOccurs="unbounded">
+      <xs:group ref="AnnotationBodyLeaves"/>
+      <xs:element name="quote" type="CellAnnotationContent"/>
+      <xs:element name="ul" type="CellAnnotationList"/>
+      <xs:element name="ol" type="CellAnnotationList"/>
+    </xs:choice>
+    <xs:attributeGroup ref="IgnoredAttributes"/>
+  </xs:complexType>
+
+  <!-- Older lists may put sublists after their owning li, in addition to nesting inside it. -->
+  <xs:complexType name="List">
+    <xs:sequence minOccurs="0" maxOccurs="unbounded">
+      <xs:element name="li" type="BodyContent"/>
+      <xs:choice minOccurs="0" maxOccurs="unbounded">
+        <xs:element name="ul" type="List"/>
+        <xs:element name="ol" type="List"/>
+      </xs:choice>
+    </xs:sequence>
+    <xs:attributeGroup ref="IgnoredAttributes"/>
+  </xs:complexType>
+  <xs:complexType name="CellList">
+    <xs:sequence minOccurs="0" maxOccurs="unbounded">
+      <xs:element name="li" type="CellContent"/>
+      <xs:choice minOccurs="0" maxOccurs="unbounded">
+        <xs:element name="ul" type="CellList"/>
+        <xs:element name="ol" type="CellList"/>
+      </xs:choice>
+    </xs:sequence>
+    <xs:attributeGroup ref="IgnoredAttributes"/>
+  </xs:complexType>
+  <xs:complexType name="AnnotationList">
+    <xs:sequence minOccurs="0" maxOccurs="unbounded">
+      <xs:element name="li" type="AnnotationContent"/>
+      <xs:choice minOccurs="0" maxOccurs="unbounded">
+        <xs:element name="ul" type="AnnotationList"/>
+        <xs:element name="ol" type="AnnotationList"/>
+      </xs:choice>
+    </xs:sequence>
+    <xs:attributeGroup ref="IgnoredAttributes"/>
+  </xs:complexType>
+  <xs:complexType name="CellAnnotationList">
+    <xs:sequence minOccurs="0" maxOccurs="unbounded">
+      <xs:element name="li" type="CellAnnotationContent"/>
+      <xs:choice minOccurs="0" maxOccurs="unbounded">
+        <xs:element name="ul" type="CellAnnotationList"/>
+        <xs:element name="ol" type="CellAnnotationList"/>
+      </xs:choice>
+    </xs:sequence>
+    <xs:attributeGroup ref="IgnoredAttributes"/>
+  </xs:complexType>
+
+  <xs:complexType name="ImageBlock">
+    <xs:all>
+      <xs:element name="id" type="PlainText" minOccurs="0"/>
+      <xs:element name="format" type="PlainText" minOccurs="0"/>
+      <xs:element name="width" type="PlainText"/>
+      <xs:element name="height" type="PlainText"/>
+      <xs:element name="size" type="PlainText"/>
+      <xs:element name="url" type="PlainText"/>
+      <xs:element name="description" type="TextWithBreaks"/>
+    </xs:all>
+    <xs:attributeGroup ref="IgnoredAttributes"/>
+  </xs:complexType>
+
+  <xs:attributeGroup name="ComplexTableAttributes">
+    <xs:attribute name="header" type="TableHeader"/>
+    <xs:attribute name="widths" type="xs:string"/>
+    <xs:attributeGroup ref="IgnoredAttributes"/>
+  </xs:attributeGroup>
+
+  <xs:attributeGroup name="CellPosition">
+    <xs:attribute name="col" type="xs:string"/>
+    <xs:attribute name="rowspan" type="xs:string"/>
+    <xs:attribute name="colspan" type="xs:string"/>
+  </xs:attributeGroup>
+
+  <xs:complexType name="ComplexCell">
+    <xs:complexContent>
+      <xs:extension base="CellContent">
+        <xs:attributeGroup ref="CellPosition"/>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+  <xs:complexType name="AnnotationTableCell">
+    <xs:complexContent>
+      <xs:extension base="CellAnnotationContent">
+        <xs:attributeGroup ref="CellPosition"/>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
+  <xs:complexType name="ComplexRow">
+    <xs:choice minOccurs="0" maxOccurs="unbounded">
+      <xs:element name="td" type="ComplexCell"/>
+      <xs:element name="th" type="ComplexCell"/>
+    </xs:choice>
+    <xs:attributeGroup ref="IgnoredAttributes"/>
+  </xs:complexType>
+  <xs:complexType name="AnnotationTableRow">
+    <xs:choice minOccurs="0" maxOccurs="unbounded">
+      <xs:element name="td" type="AnnotationTableCell"/>
+      <xs:element name="th" type="AnnotationTableCell"/>
+    </xs:choice>
+    <xs:attributeGroup ref="IgnoredAttributes"/>
+  </xs:complexType>
+
+  <xs:complexType name="ComplexTable">
+    <xs:sequence>
+      <xs:element name="tr" type="ComplexRow" maxOccurs="unbounded"/>
+    </xs:sequence>
+    <xs:attributeGroup ref="ComplexTableAttributes"/>
+  </xs:complexType>
+  <xs:complexType name="AnnotationTable">
+    <xs:sequence>
+      <xs:element name="tr" type="AnnotationTableRow" maxOccurs="unbounded"/>
+    </xs:sequence>
+    <xs:attributeGroup ref="ComplexTableAttributes"/>
+  </xs:complexType>
+  <xs:complexType name="SimpleRow">
+    <xs:sequence>
+      <xs:element name="cell" minOccurs="2" maxOccurs="2">
+        <xs:complexType>
+          <xs:complexContent>
+            <xs:extension base="TextWithBreaks">
+              <xs:attribute name="label" type="xs:string"/>
+              <xs:attributeGroup ref="IgnoredAttributes"/>
+            </xs:extension>
+          </xs:complexContent>
+        </xs:complexType>
+      </xs:element>
+    </xs:sequence>
+    <xs:attributeGroup ref="IgnoredAttributes"/>
+  </xs:complexType>
+
+  <!-- A direct chapter table can be a simple table (including an empty one) or a complex table. -->
+  <xs:complexType name="ChapterTable">
+    <xs:choice minOccurs="0">
+      <xs:element name="row" type="SimpleRow" maxOccurs="unbounded"/>
+      <xs:element name="tr" type="ComplexRow" maxOccurs="unbounded"/>
+    </xs:choice>
+    <xs:attributeGroup ref="ComplexTableAttributes"/>
+  </xs:complexType>
+
+  <xs:complexType name="AudioItem">
+    <xs:complexContent>
+      <xs:extension base="TextWithBreaks">
+        <xs:attribute name="name" type="xs:string"/>
+        <xs:attribute name="src" type="xs:string"/>
+        <xs:attributeGroup ref="IgnoredAttributes"/>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+  <xs:complexType name="Audios">
+    <xs:sequence>
+      <xs:element name="audio" type="AudioItem" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+    <xs:attributeGroup ref="IgnoredAttributes"/>
+  </xs:complexType>
+
+  <xs:complexType name="ImageIntro">
+    <xs:all>
+      <xs:element name="name" type="PlainText"/>
+      <xs:element name="type" type="PlainText"/>
+      <xs:element name="imgUrl" type="PlainText"/>
+      <xs:element name="description" type="InlineContent"/>
+    </xs:all>
+    <xs:attributeGroup ref="IgnoredAttributes"/>
+  </xs:complexType>
+  <xs:complexType name="Tab" mixed="true">
+    <xs:choice minOccurs="0" maxOccurs="unbounded">
+      <xs:group ref="BodyItems"/>
+      <xs:element name="imgIntro" type="ImageIntro"/>
+      <xs:element name="audios" type="Audios"/>
+    </xs:choice>
+    <xs:attribute name="name" type="xs:string"/>
+    <xs:attribute name="icon" type="xs:string"/>
+    <xs:attributeGroup ref="IgnoredAttributes"/>
+  </xs:complexType>
+
+  <xs:complexType name="DialogText" mixed="true">
+    <xs:choice minOccurs="0" maxOccurs="unbounded">
+      <xs:element name="br" type="Break"/>
+      <xs:element name="emoji" type="Emoji"/>
+    </xs:choice>
+  </xs:complexType>
+  <xs:complexType name="DialogMessage">
+    <xs:choice minOccurs="0" maxOccurs="unbounded">
+      <xs:element name="text" type="DialogText"/>
+      <xs:element name="image">
+        <xs:complexType>
+          <xs:attribute name="src" type="NonBlankText" use="required"/>
+        </xs:complexType>
+      </xs:element>
+    </xs:choice>
+    <xs:attribute name="side" type="DialogSide" use="required"/>
+    <xs:attribute name="avatar" type="NonBlankText" use="required"/>
+    <xs:attribute name="name" type="xs:string"/>
+  </xs:complexType>
+  <xs:complexType name="DialogBranches">
+    <xs:sequence>
+      <xs:element name="branch" maxOccurs="unbounded">
+        <xs:complexType>
+          <xs:sequence>
+            <xs:element name="message" type="DialogMessage" minOccurs="2" maxOccurs="unbounded"/>
+          </xs:sequence>
+          <xs:attribute name="name" type="xs:string" use="required"/>
+        </xs:complexType>
+      </xs:element>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="DialogDivider">
+    <xs:simpleContent>
+      <xs:extension base="xs:string">
+        <xs:attribute name="kind" type="NonBlankText" use="required"/>
+      </xs:extension>
+    </xs:simpleContent>
+  </xs:complexType>
+
+  <xs:complexType name="Chapter" mixed="true">
+    <xs:choice minOccurs="0" maxOccurs="unbounded">
+      <xs:group ref="BodyItemsWithoutTable"/>
+      <xs:element name="table" type="ChapterTable"/>
+      <xs:element name="tab" type="Tab"/>
+      <xs:element name="audios" type="Audios"/>
+      <xs:element name="message" type="DialogMessage"/>
+      <xs:element name="branches" type="DialogBranches"/>
+      <xs:element name="divider" type="DialogDivider"/>
+    </xs:choice>
+    <xs:attribute name="name" type="xs:string" use="required"/>
+    <xs:attribute name="size" type="xs:string"/>
+    <xs:attribute name="table" type="xs:string"/>
+    <xs:attribute name="audio" type="xs:string"/>
+    <xs:attribute name="dialog" type="xs:string"/>
+    <xs:attributeGroup ref="IgnoredAttributes"/>
+  </xs:complexType>
+  <xs:complexType name="ChapterGroup">
+    <xs:sequence>
+      <xs:element name="chapter" type="Chapter" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+    <xs:attribute name="name" type="xs:string" use="required"/>
+    <xs:attributeGroup ref="IgnoredAttributes"/>
+  </xs:complexType>
+
+  <xs:complexType name="MetaInfo">
+    <xs:all>
+      <xs:element name="name" type="PlainText"/>
+      <xs:element name="cover">
+        <xs:complexType>
+          <xs:simpleContent>
+            <xs:extension base="PlainText">
+              <xs:attribute name="showInDetail" type="xs:string"/>
+            </xs:extension>
+          </xs:simpleContent>
+        </xs:complexType>
+      </xs:element>
+      <xs:element name="subTypes">
+        <xs:complexType>
+          <xs:sequence>
+            <xs:element name="subType" minOccurs="0" maxOccurs="unbounded">
+              <xs:complexType>
+                <xs:simpleContent>
+                  <xs:extension base="PlainText">
+                    <xs:attribute name="id" type="xs:string" use="required"/>
+                  </xs:extension>
+                </xs:simpleContent>
+              </xs:complexType>
+            </xs:element>
+          </xs:sequence>
+          <xs:attributeGroup ref="IgnoredAttributes"/>
+        </xs:complexType>
+      </xs:element>
+    </xs:all>
+    <xs:attributeGroup ref="IgnoredAttributes"/>
+  </xs:complexType>
+
+  <xs:element name="sklandDocument">
+    <xs:complexType>
+      <!-- XSD 1.0 cannot combine xs:all with repeatable chapters. The converter checks
+           that itemId, metainfo, and description are present. -->
+      <xs:choice minOccurs="0" maxOccurs="unbounded">
+        <xs:element name="itemId" type="PlainText"/>
+        <xs:element name="commitMsg" type="PlainText"/>
+        <xs:element name="publicMeta" type="PlainText"/>
+        <xs:element name="metainfo" type="MetaInfo"/>
+        <xs:element name="description">
+          <xs:complexType>
+            <xs:complexContent>
+              <xs:extension base="BodyContent">
+                <xs:attribute name="source" type="xs:string"/>
+              </xs:extension>
+            </xs:complexContent>
+          </xs:complexType>
+        </xs:element>
+        <xs:element name="chapters" type="ChapterGroup"/>
+      </xs:choice>
+      <xs:attributeGroup ref="IgnoredAttributes"/>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>

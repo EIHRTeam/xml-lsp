@@ -1,0 +1,38 @@
+{
+  "name": "@eihrteam/xml-language-server",
+  "version": "0.1.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "bin": {
+    "skland-xml-language-server": "./dist/node.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "sideEffects": [
+    "./dist/worker.js",
+    "./dist/node.js"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./node": {
+      "types": "./dist/node-api.d.ts",
+      "import": "./dist/node-api.js"
+    },
+    "./browser": {
+      "types": "./dist/browser.d.ts",
+      "import": "./dist/browser.js"
+    },
+    "./worker": "./dist/worker.js"
+  },
+  "dependencies": {
+    "@eihrteam/xml-language-service": "workspace:*",
+    "vscode-jsonrpc": "8.2.0",
+    "vscode-languageserver": "9.0.1",
+    "vscode-languageserver-types": "3.17.5"
+  }
+}

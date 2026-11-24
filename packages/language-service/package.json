@@ -1,0 +1,25 @@
+{
+  "name": "@eihrteam/xml-language-service",
+  "version": "0.1.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "dependencies": {
+    "@eihrteam/xml": "1.0.0",
+    "@lezer/common": "1.5.0",
+    "@lezer/xml": "1.0.6",
+    "@xmldom/xmldom": "0.9.12",
+    "vscode-languageserver-textdocument": "1.0.12",
+    "vscode-languageserver-types": "3.17.5"
+  }
+}

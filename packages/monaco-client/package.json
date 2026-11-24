@@ -1,0 +1,24 @@
+{
+  "name": "@eihrteam/xml-monaco-client",
+  "version": "0.1.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "dependencies": {
+    "@eihrteam/xml-browser-client": "workspace:*",
+    "vscode-languageserver-types": "3.17.5"
+  },
+  "peerDependencies": {
+    "monaco-editor": "^0.58.0"
+  }
+}

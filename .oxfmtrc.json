@@ -1,0 +1,12 @@
+{
+  "singleQuote": true,
+  "semi": false,
+  "printWidth": 100,
+  "ignorePatterns": [
+    "PLAN.md",
+    "pnpm-lock.yaml",
+    "reference/**",
+    "tests/fixtures/upstream-sample.xml",
+    "packages/language-service/src/schema.generated.ts"
+  ]
+}

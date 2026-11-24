@@ -1,0 +1,76 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm check
+      - run: pnpm format:check
+      - run: pnpm test:package
+      - run: pnpm exec playwright install --with-deps --no-shell chromium
+      - run: pnpm test:browser
+      - run: pnpm test:mv3
+      - run: xvfb-run -a pnpm test:vscode
+      - run: pnpm package:vscode
+      - uses: actions/upload-artifact@v4
+        with:
+          name: skland-xml-vsix
+          path: dist/*.vsix
+
+  node-smoke:
+    strategy:
+      matrix:
+        os: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: pnpm test:protocol
+      - run: pnpm check:artifacts
+
+  benchmark:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: pnpm package:vscode
+      - run: pnpm exec playwright install --with-deps --no-shell chromium
+      - run: pnpm benchmark --browser > dist/benchmark.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: benchmark
+          path: dist/benchmark.json

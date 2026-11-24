@@ -1,0 +1,130 @@
+{
+  "name": "@eihrteam/xml-lsp",
+  "version": "0.1.0",
+  "description": "Local language tools for SKLand Wiki XML",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/EIHRTeam/xml-lsp.git"
+  },
+  "bin": {
+    "skland-xml-language-server": "./dist/npm/cli.js"
+  },
+  "files": [
+    "dist/npm",
+    "docs"
+  ],
+  "type": "module",
+  "sideEffects": [
+    "./dist/npm/language-server/worker.js",
+    "./dist/npm/cli.js"
+  ],
+  "main": "./dist/npm/language-service/index.js",
+  "types": "./dist/npm/language-service/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/npm/language-service/index.d.ts",
+      "import": "./dist/npm/language-service/index.js"
+    },
+    "./language-service": {
+      "types": "./dist/npm/language-service/index.d.ts",
+      "import": "./dist/npm/language-service/index.js"
+    },
+    "./server": {
+      "types": "./dist/npm/language-server/index.d.ts",
+      "import": "./dist/npm/language-server/index.js"
+    },
+    "./node": {
+      "types": "./dist/npm/language-server/node-api.d.ts",
+      "import": "./dist/npm/language-server/node-api.js"
+    },
+    "./browser": {
+      "types": "./dist/npm/language-server/browser.d.ts",
+      "import": "./dist/npm/language-server/browser.js"
+    },
+    "./worker": {
+      "types": "./dist/npm/language-server/worker.d.ts",
+      "import": "./dist/npm/language-server/worker.js"
+    },
+    "./browser-client": {
+      "types": "./dist/npm/browser-client/index.d.ts",
+      "import": "./dist/npm/browser-client/index.js"
+    },
+    "./monaco": {
+      "types": "./dist/npm/monaco-client/index.d.ts",
+      "import": "./dist/npm/monaco-client/index.js"
+    },
+    "./ace": {
+      "types": "./dist/npm/ace-client/index.d.ts",
+      "import": "./dist/npm/ace-client/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "scripts": {
+    "generate:schema": "node tooling/schema-compiler/generate.ts",
+    "check:schema": "node tooling/schema-compiler/generate.ts --check",
+    "lint": "oxlint",
+    "format": "oxfmt --write",
+    "format:check": "oxfmt --check",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "build": "node tooling/build.ts",
+    "test:protocol": "vitest run tests/protocol.test.ts",
+    "test:browser": "playwright test --project=web",
+    "test:mv3": "playwright test --project=mv3",
+    "test:vscode": "node tests/vscode/run.ts",
+    "package:vscode": "node tooling/package-vscode.ts",
+    "benchmark": "node --expose-gc tooling/benchmark.ts",
+    "check:artifacts": "node tooling/check-artifacts.ts",
+    "check": "pnpm check:schema && pnpm lint && pnpm typecheck && pnpm build && pnpm test && pnpm check:artifacts",
+    "examples": "node tooling/serve-examples.ts",
+    "prepack": "pnpm build",
+    "pack:npm": "npm pack --ignore-scripts --pack-destination dist",
+    "pack:dry-run": "npm pack --ignore-scripts --dry-run",
+    "test:package": "node tooling/check-npm-package.ts"
+  },
+  "dependencies": {
+    "@lezer/common": "1.5.0",
+    "vscode-jsonrpc": "8.2.0",
+    "vscode-languageserver": "9.0.1",
+    "vscode-languageserver-types": "3.17.5"
+  },
+  "devDependencies": {
+    "@eihrteam/xml": "1.0.0",
+    "@playwright/test": "1.65.1",
+    "@tsdown/css": "0.23.7",
+    "@types/node": "24",
+    "@types/vscode": "1.105.0",
+    "@vscode/test-electron": "3.1.0",
+    "@vscode/vsce": "4.1.1",
+    "@xmldom/xmldom": "0.9.12",
+    "ace-builds": "1.45.2",
+    "monaco-editor": "0.58.0",
+    "oxfmt": "0.80.0",
+    "oxlint": "1.95.0",
+    "tsdown": "0.23.7",
+    "typescript": "7.1.0-beta",
+    "vitest": "5.1.1",
+    "vscode-languageserver-textdocument": "1.0.12"
+  },
+  "peerDependencies": {
+    "ace-builds": "^1.45.2",
+    "monaco-editor": "^0.58.0"
+  },
+  "peerDependenciesMeta": {
+    "ace-builds": {
+      "optional": true
+    },
+    "monaco-editor": {
+      "optional": true
+    }
+  },
+  "engines": {
+    "node": ">=24.11.0"
+  },
+  "packageManager": "pnpm@12.11.2"
+}
