@@ -22,6 +22,10 @@ export type Change = { range?: Range; text: string }
 export interface BrowserClientOptions {
   snippets?: boolean
   markdown?: boolean
+  /** Abort initialization or immediately release the owned Worker. */
+  signal?: AbortSignal
+  /** A Worker error after successful initialization. */
+  onUnexpectedClose?: () => void
 }
 export interface LinkedRanges {
   ranges: Range[]
@@ -90,21 +94,31 @@ export async function connectBrowserClient(
   const documents = new Map<string, OpenDocument>()
   let nextVersion = 0
   let closed = false
+  let initialized = false
   let disposing: Promise<void> | undefined
 
   function release(): void {
     if (closed) return
     closed = true
-    worker.removeEventListener('error', release)
-    connection.dispose()
-    reader.dispose()
-    writer.dispose()
+    options.signal?.removeEventListener('abort', release)
+    worker.removeEventListener('error', workerFailed)
+    worker.removeEventListener('messageerror', workerFailed)
+    worker.onmessage = null
     worker.terminate()
+    // JSON-RPC registers its response handler after awaiting the message write.
+    // Allow that microtask to finish before rejecting pending requests.
+    queueMicrotask(() => connection.dispose())
     const open = [...documents.values()]
     documents.clear()
     for (const document of open) document.diagnostics([])
   }
-  worker.addEventListener('error', release)
+  function workerFailed(): void {
+    release()
+    if (initialized && !disposing) options.onUnexpectedClose?.()
+  }
+  worker.addEventListener('error', workerFailed)
+  worker.addEventListener('messageerror', workerFailed)
+  options.signal?.addEventListener('abort', release, { once: true })
   connection.onNotification(
     'textDocument/publishDiagnostics',
     ({ uri, version, diagnostics }: DiagnosticNotification) => {
@@ -114,6 +128,7 @@ export async function connectBrowserClient(
   )
   connection.listen()
   try {
+    options.signal?.throwIfAborted()
     await within(
       connection.sendRequest('initialize', {
         processId: null,
@@ -137,6 +152,8 @@ export async function connectBrowserClient(
       'SKLand XML Worker initialization timed out',
     )
     await connection.sendNotification('initialized', {})
+    if (closed) throw new Error('The SKLand XML Worker closed during initialization')
+    initialized = true
   } catch (error) {
     release()
     throw error

@@ -36,7 +36,9 @@ const attachment = client.attachEditor(editor, 'inmemory:///page.skland.xml')
 await attachment.format()
 ```
 
-使用 `attachment.format(true)` 格式化选区。多文档宿主可以为 `attachEditor` 传入从 EditSession 到 URI 的函数。初始化时请确保 XML mode 和 `ext-language_tools` 已加载。示例在扩展页面上配置了静态 Ace 资源、Strict CSP 样式和无 Blob 的 Worker 路径。Ace 集成提供诊断、补全、悬停和格式化。
+使用 `attachment.format(true)` 格式化选区。多文档宿主可以为 `attachEditor` 传入从 EditSession 到 URI 的函数。初始化时请确保 XML mode 和 `ext-language_tools` 已加载，并关闭 Ace 自带的 XML Worker，避免诊断互相覆盖。Ace 使用原生补全菜单和片段管理器，支持 Tab 接受补全并在占位符间导航。示例在扩展页面上配置了静态 Ace 资源、Strict CSP 样式和无 Blob 的 Worker 路径。
+
+两个适配器均可通过最后一个参数传入 `{ signal, onUnexpectedClose }`。宿主可以在初始化或编辑期间取消 `signal`，以立即终止 Worker。Worker 在初始化后出错时会清空诊断并调用 `onUnexpectedClose`。宿主仍需释放适配器或绑定来移除编辑器监听器和语言功能。
 
 ## VS Code
 

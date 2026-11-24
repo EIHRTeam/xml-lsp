@@ -1,12 +1,14 @@
 import type * as AceModule from 'ace-builds'
 import type { Ace } from 'ace-builds'
+import type * as AceSnippets from 'ace-builds-internal/snippets'
 import type { HoverTooltip } from 'ace-builds-internal/tooltip'
 import { connectBrowserClient, type BrowserDocument } from '@eihrteam/xml-browser-client'
+import type { BrowserClientOptions } from '@eihrteam/xml-lsp/browser-client'
 import {
   DiagnosticSeverity,
+  InsertTextFormat,
   type Position,
   type Range,
-  type TextEdit,
 } from 'vscode-languageserver-types'
 
 const toPosition = (point: Ace.Point): Position => ({ line: point.row, character: point.column })
@@ -32,8 +34,12 @@ interface SessionBinding {
 }
 
 /** Load Ace's ext-language_tools before attaching an editor. */
-export async function createAceClient(ace: typeof AceModule, worker: Worker): Promise<AceClient> {
-  const client = await connectBrowserClient(worker)
+export async function createAceClient(
+  ace: typeof AceModule,
+  worker: Worker,
+  options?: Pick<BrowserClientOptions, 'signal' | 'onUnexpectedClose'>,
+): Promise<AceClient> {
+  const client = await connectBrowserClient(worker, { ...options, snippets: true })
   const sessions = new Map<Ace.EditSession, SessionBinding>()
   const editors = new Map<Ace.Editor, AceAttachment>()
   const fromRange = ({ start, end }: Range) =>
@@ -53,7 +59,9 @@ export async function createAceClient(ace: typeof AceModule, worker: Worker): Pr
     }
     const source = session.getDocument()
     let eol = source.getNewLineCharacter()
+    let hasAnnotations = false
     const document = client.open(uri, session.getValue(), (diagnostics) => {
+      hasAnnotations = diagnostics.length > 0
       session.setAnnotations(
         diagnostics.map((item) => ({
           row: item.range.start.line,
@@ -76,6 +84,10 @@ export async function createAceClient(ace: typeof AceModule, worker: Worker): Pr
     }
     const eolChanged = () => queueMicrotask(updateEol)
     const change = (delta: Ace.Delta) => {
+      if (hasAnnotations) {
+        hasAnnotations = false
+        session.clearAnnotations()
+      }
       if (updateEol()) return
       const start = toPosition(delta.start)
       if (delta.action === 'insert')
@@ -105,6 +117,7 @@ export async function createAceClient(ace: typeof AceModule, worker: Worker): Pr
       if (editors.has(editor)) throw new Error('This Ace editor is already attached')
       if (!ace.require('ace/ext/language_tools'))
         throw new Error('Load Ace ext-language_tools before attaching')
+      const { snippetManager } = ace.require('ace/snippets') as typeof AceSnippets
       const uri = typeof uriForSession === 'string' ? () => uriForSession : uriForSession
       const originalBasic = editor.getOption('enableBasicAutocompletion')
       const originalLive = editor.getOption('enableLiveAutocompletion')
@@ -115,48 +128,86 @@ export async function createAceClient(ace: typeof AceModule, worker: Worker): Pr
       let hoverRequest = 0
       let completionRequest = 0
       const tooltip = new Tooltip(editor.container)
-      type Suggestion = Ace.Completion & { sklandEdit?: TextEdit; sklandRequest?: number }
+      // Ace exposes this on editors with the native snippet manager attached.
+      const snippetEditor = editor as Ace.Editor & { tabstopManager?: { detach(): void } }
+      let completionPosition: Ace.Point | undefined
+      const samePoint = (a: Ace.Point, b: Ace.Point) => a.row === b.row && a.column === b.column
+      type Suggestion = Ace.Completion & { xmlRange: Ace.Range; xmlRequest: number }
       const completer: Ace.Completer = {
         id: 'skland-xml',
         triggerCharacters: ['<', '/', ' ', '=', '"', "'"],
         identifierRegexps: [/[a-zA-Z0-9_.:-]/],
         getCompletions(_editor, requestedSession, position, _prefix, callback) {
-          if (!isOpen || requestedSession !== session) {
+          if (
+            !isOpen ||
+            requestedSession !== session ||
+            editor.inMultiSelectMode ||
+            (snippetEditor.tabstopManager &&
+              editor.completer &&
+              'autoShown' in editor.completer &&
+              editor.completer.autoShown)
+          ) {
             callback(null, [])
             return
           }
+          completionPosition = position
           const request = ++completionRequest
           void (async () => {
             const result = await binding.document.completion(toPosition(position))
-            const suggestions: Suggestion[] =
-              result?.items.map((item) => ({
-                caption: item.label,
-                value: item.textEdit?.newText ?? item.insertText ?? item.label,
-                completer,
-                meta: 'SKLand XML',
-                score: 1000,
-                docText:
-                  typeof item.documentation === 'string'
-                    ? item.documentation
-                    : item.documentation?.value,
-                sklandEdit: item.textEdit && 'range' in item.textEdit ? item.textEdit : undefined,
-                sklandRequest: request,
-              })) ?? []
+            const suggestions =
+              result?.items.flatMap((item): Suggestion[] => {
+                const edit = item.textEdit
+                if (!edit || !('range' in edit)) return []
+                return [
+                  {
+                    caption: item.label,
+                    ...(item.insertTextFormat === InsertTextFormat.Snippet
+                      ? { snippet: edit.newText }
+                      : { value: edit.newText }),
+                    xmlRange: fromRange(edit.range),
+                    xmlRequest: request,
+                    completer,
+                    meta: 'SKLand XML',
+                    score: 1000,
+                    docText:
+                      typeof item.documentation === 'string'
+                        ? item.documentation
+                        : item.documentation?.value,
+                  },
+                ]
+              }) ?? []
             callback(
               null,
-              isOpen && request === completionRequest && requestedSession === session
+              isOpen &&
+                request === completionRequest &&
+                requestedSession === session &&
+                samePoint(editor.getCursorPosition(), position)
                 ? suggestions
                 : [],
             )
           })()
         },
-        insertMatch(_editor, completion: Suggestion) {
-          if (isOpen && completion.sklandRequest === completionRequest && completion.sklandEdit) {
-            const { range, newText } = completion.sklandEdit
-            session.replace(fromRange(range), newText)
+        insertMatch(_editor, data) {
+          const item = data as Suggestion
+          if (
+            !isOpen ||
+            item.xmlRequest !== completionRequest ||
+            editor.inMultiSelectMode ||
+            !completionPosition ||
+            !samePoint(editor.getCursorPosition(), completionPosition)
+          )
+            return
+          // Use Ace's completion operation and native snippet manager, with the LSP edit range.
+          if (item.snippet !== undefined) {
+            editor.selection.setSelectionRange(item.xmlRange)
+            snippetManager.insertSnippet(editor, item.snippet)
+          } else if (item.value !== undefined) {
+            editor.moveCursorToPosition(session.replace(item.xmlRange, item.value))
+            editor.clearSelection()
           }
         },
       }
+      editor.completers = [completer]
       editor.setOptions({ enableBasicAutocompletion: [completer], enableLiveAutocompletion: true })
       tooltip.setDataProvider((event, target) => {
         const request = ++hoverRequest
@@ -176,23 +227,33 @@ export async function createAceClient(ace: typeof AceModule, worker: Worker): Pr
       tooltip.addToEditor(editor)
       const invalidateCompletion = () => {
         completionRequest++
+        completionPosition = undefined
+        editor.completer?.detach()
+      }
+      const cursorChanged = () => {
+        if (completionPosition && !samePoint(editor.getCursorPosition(), completionPosition))
+          invalidateCompletion()
       }
       const onSession = ({ session: next }: { session: Ace.EditSession }) => {
         hoverRequest++
-        completionRequest++
+        invalidateCompletion()
         tooltip.hide(undefined)
         session.off('change', invalidateCompletion)
+        session.selection.off('changeCursor', cursorChanged)
         binding.dispose()
         session = next
         binding = acquire(session, uri(session))
         session.on('change', invalidateCompletion)
+        session.selection.on('changeCursor', cursorChanged)
       }
       session.on('change', invalidateCompletion)
+      session.selection.on('changeCursor', cursorChanged)
       editor.on('changeSession', onSession)
       const attachment: AceAttachment = {
         async format(selectionOnly = false) {
           const active = session
           const selection = editor.getSelectionRange()
+          if (selectionOnly && selection.isEmpty()) return
           const range = selectionOnly
             ? { start: toPosition(selection.start), end: toPosition(selection.end) }
             : undefined
@@ -200,9 +261,18 @@ export async function createAceClient(ace: typeof AceModule, worker: Worker): Pr
             { tabSize: session.getTabSize(), insertSpaces: session.getUseSoftTabs() },
             range,
           )
-          if (!isOpen || active !== session || !edits) return
+          if (
+            !isOpen ||
+            active !== session ||
+            !edits?.length ||
+            (selectionOnly && !selection.isEqual(editor.getSelectionRange()))
+          )
+            return
+          const undo = session.getUndoManager()
+          undo.startNewGroup()
           for (const edit of [...edits].reverse())
             session.replace(fromRange(edit.range), edit.newText)
+          undo.startNewGroup()
         },
         dispose() {
           if (!editors.delete(editor)) return
@@ -210,6 +280,9 @@ export async function createAceClient(ace: typeof AceModule, worker: Worker): Pr
           editor.off('destroy', attachment.dispose)
           editor.off('changeSession', onSession)
           session.off('change', invalidateCompletion)
+          session.selection.off('changeCursor', cursorChanged)
+          invalidateCompletion()
+          snippetEditor.tabstopManager?.detach()
           tooltip.removeFromEditor(editor)
           tooltip.destroy()
           binding.dispose()

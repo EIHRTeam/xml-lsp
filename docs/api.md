@@ -45,4 +45,4 @@ service.dispose()
 
 ## 无编辑器的 Worker 客户端
 
-`@eihrteam/xml-lsp/browser-client` 的 `connectBrowserClient(worker, options?)` 负责 LSP 初始化和 Worker 生命周期。`client.open(uri, text, diagnosticsCallback)` 返回文档句柄，可调用 `change`、`completion`、`hover`、`formatting`、`symbols`、`folding`、`linkedEditing`、`links`、`codeActions`、`close`。需要释放整个会话时调用 `await client.dispose()`。
+`@eihrteam/xml-lsp/browser-client` 的 `connectBrowserClient(worker, options?)` 负责 LSP 初始化和 Worker 生命周期。`client.open(uri, text, diagnosticsCallback)` 返回文档句柄，可调用 `change`、`completion`、`hover`、`formatting`、`symbols`、`folding`、`linkedEditing`、`links`、`codeActions`、`close`。需要释放整个会话时调用 `await client.dispose()`。传入 `options.signal` 可立即取消初始化或终止会话；初始化后的 Worker 错误通过 `options.onUnexpectedClose` 通知宿主。

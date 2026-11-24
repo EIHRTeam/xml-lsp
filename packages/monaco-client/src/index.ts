@@ -1,5 +1,6 @@
-import type * as Monaco from 'monaco-editor'
+import type * as Monaco from 'monaco-editor/editor/editor.api.js'
 import { connectBrowserClient, type BrowserDocument } from '@eihrteam/xml-browser-client'
+import type { BrowserClientOptions } from '@eihrteam/xml-lsp/browser-client'
 import {
   CompletionItemKind,
   DiagnosticSeverity,
@@ -37,8 +38,9 @@ export async function createMonacoClient(
   monaco: typeof Monaco,
   worker: Worker,
   languageId = owner,
+  options?: Pick<BrowserClientOptions, 'signal' | 'onUnexpectedClose'>,
 ): Promise<MonacoClient> {
-  const client = await connectBrowserClient(worker, { snippets: true, markdown: true })
+  const client = await connectBrowserClient(worker, { ...options, snippets: true, markdown: true })
   const models = new Map<
     Monaco.editor.ITextModel,
     { document: BrowserDocument; dispose(): void; diagnostics: Diagnostic[] }
@@ -89,27 +91,35 @@ export async function createMonacoClient(
         return {
           incomplete: response?.isIncomplete ?? false,
           suggestions:
-            response?.items.map((item) => {
+            response?.items.flatMap((item) => {
               const edit = item.textEdit
-              return {
-                label: item.label,
-                kind:
-                  item.kind === CompletionItemKind.Field
-                    ? monaco.languages.CompletionItemKind.Field
-                    : item.kind === CompletionItemKind.Value
-                      ? monaco.languages.CompletionItemKind.Value
-                      : monaco.languages.CompletionItemKind.Property,
-                insertText: edit?.newText ?? item.insertText ?? item.label,
-                insertTextRules:
-                  item.insertTextFormat === InsertTextFormat.Snippet
-                    ? monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet
-                    : undefined,
-                range: edit && 'range' in edit ? fromRange(edit.range) : fallback,
-                documentation:
-                  typeof item.documentation === 'string'
-                    ? item.documentation
-                    : item.documentation?.value,
-              }
+              const range = edit && 'range' in edit ? fromRange(edit.range) : fallback
+              if (
+                range.startLineNumber !== position.lineNumber ||
+                range.endLineNumber !== position.lineNumber
+              )
+                return []
+              return [
+                {
+                  label: item.label,
+                  kind:
+                    item.kind === CompletionItemKind.Field
+                      ? monaco.languages.CompletionItemKind.Field
+                      : item.kind === CompletionItemKind.Value
+                        ? monaco.languages.CompletionItemKind.Value
+                        : monaco.languages.CompletionItemKind.Property,
+                  insertText: edit?.newText ?? item.insertText ?? item.label,
+                  insertTextRules:
+                    item.insertTextFormat === InsertTextFormat.Snippet
+                      ? monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet
+                      : undefined,
+                  range,
+                  documentation:
+                    typeof item.documentation === 'string'
+                      ? item.documentation
+                      : item.documentation?.value,
+                },
+              ]
             }) ?? [],
         }
       },
@@ -170,7 +180,12 @@ export async function createMonacoClient(
     monaco.languages.registerLinkedEditingRangeProvider(languageId, {
       async provideLinkedEditingRanges(model, position, token) {
         const result = await document(model)?.linkedEditing(toPosition(position), token)
-        return result ? { ranges: result.ranges.map(fromRange) } : null
+        return result
+          ? {
+              ranges: result.ranges.map(fromRange),
+              wordPattern: result.wordPattern ? new RegExp(result.wordPattern) : undefined,
+            }
+          : null
       },
     }),
     monaco.languages.registerLinkProvider(languageId, {
@@ -226,10 +241,15 @@ export async function createMonacoClient(
       const document = client.open(model.uri.toString(), model.getValue(), (diagnostics) => {
         const state = models.get(model)
         if (state) state.diagnostics = diagnostics
-        if (!model.isDisposed())
+        if (state && !model.isDisposed())
           monaco.editor.setModelMarkers(model, owner, diagnostics.map(marker))
       })
       const content = model.onDidChangeContent((event) => {
+        const state = models.get(model)
+        if (state?.diagnostics.length) {
+          state.diagnostics = []
+          monaco.editor.setModelMarkers(model, owner, [])
+        }
         document.change(
           event.isEolChange || event.isFlush
             ? [{ text: model.getValue() }]
@@ -242,6 +262,7 @@ export async function createMonacoClient(
         willDispose.dispose()
         languageChange.dispose()
         document.close()
+        monaco.editor.setModelMarkers(model, owner, [])
       }
       const willDispose = model.onWillDispose(detach)
       const languageChange = model.onDidChangeLanguage((event) => {

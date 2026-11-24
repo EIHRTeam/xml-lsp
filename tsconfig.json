@@ -14,6 +14,7 @@
       "@eihrteam/xml-language-service": ["./packages/language-service/src/index.ts"],
       "@eihrteam/xml-language-server": ["./packages/language-server/src/index.ts"],
       "@eihrteam/xml-browser-client": ["./packages/browser-client/src/index.ts"],
+      "@eihrteam/xml-lsp/browser-client": ["./packages/browser-client/src/index.ts"],
       "@eihrteam/xml-monaco-client": ["./packages/monaco-client/src/index.ts"],
       "@eihrteam/xml-ace-client": ["./packages/ace-client/src/index.ts"]
     }
